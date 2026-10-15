@@ -9,6 +9,7 @@ enum MainTab: String, CaseIterable, Identifiable {
 
 struct MainView: View {
     @ObservedObject var store: TrackerStore
+    @ObservedObject var navigation: AppNavigation
     @AppStorage("selectedTab") private var tab: MainTab = .sessions
     @AppStorage("granularity") private var granularity: Granularity = .week
     @State private var anchor = Date()
@@ -20,11 +21,19 @@ struct MainView: View {
             header
             Divider()
             switch tab {
-            case .sessions: SessionsView(store: store, period: period)
+            case .sessions: SessionsView(store: store, navigation: navigation, period: period)
             case .charts: ChartsView(store: store, period: period)
             }
         }
         .frame(minWidth: 760, minHeight: 440)
+        .onAppear(perform: applyNavigation)
+        .onChange(of: navigation.focusRequest) { applyNavigation() }
+    }
+
+    private func applyNavigation() {
+        guard navigation.pendingFocusActiveStart else { return }
+        tab = .sessions
+        anchor = Date()
     }
 
     private var header: some View {

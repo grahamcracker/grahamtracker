@@ -5,6 +5,7 @@ import SwiftUI
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let store = TrackerStore()
+    private let navigation = AppNavigation()
     private var statusItem: NSStatusItem!
     private var window: NSWindow?
 
@@ -21,7 +22,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         installMainMenu()
         enableLaunchAtLoginOnFirstRun()
         if UserDefaults.standard.bool(forKey: "openWindowOnLaunch") { openMainWindow() }
-
         if let error = store.loadError {
             let alert = NSAlert()
             alert.messageText = "GrahamTracker couldn't load your sessions"
@@ -44,7 +44,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // Plain title (no explicit color) so the system draws it like other menu bar items.
         button.font = NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
         button.title = " " + text
-        let symbol = store.isRunning ? "record.circle" : "pause.circle"
+        let symbol = store.isRunning ? "record.circle.fill" : "pause.fill"
         let image = NSImage(systemSymbolName: symbol, accessibilityDescription: store.isRunning ? "Tracking" : "Stopped")
         image?.isTemplate = true
         button.image = image
@@ -66,8 +66,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func menuDidClose(_ menu: NSMenu) {
-        // Detach so the next left-click toggles instead of opening the menu.
-        statusItem.menu = nil
+        // Detach so the next left-click toggles instead of opening the menu. Deferred because the
+        // clicked item's action is sent after this returns, and the status item holds the only reference to the menu.
+        Task { @MainActor [weak self] in self?.statusItem.menu = nil }
     }
 
     private func buildMenu() -> NSMenu {
@@ -79,6 +80,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(disabledItem(statusLine()))
         menu.addItem(.separator())
 
+        if store.isRunning {
+            menu.addItem(item("Change Current Session Start…", #selector(editCurrentSessionStart)))
+        }
         menu.addItem(item(store.isRunning ? "Stop Tracking" : "Start Tracking", #selector(toggleTracking)))
         menu.addItem(item("Sessions & Charts…", #selector(openMainWindow), key: "l"))
         menu.addItem(.separator())
@@ -129,9 +133,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         updateStatusItem()
     }
 
+    @objc private func editCurrentSessionStart() {
+        navigation.requestFocusActiveStart()
+        openMainWindow()
+    }
+
     @objc private func openMainWindow() {
         if window == nil {
-            let hosting = NSHostingController(rootView: MainView(store: store))
+            let hosting = NSHostingController(rootView: MainView(store: store, navigation: navigation))
             hosting.sizingOptions = [.minSize]
             let window = NSWindow(contentViewController: hosting)
             window.title = "GrahamTracker"
@@ -143,6 +152,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             self.window = window
         }
         NSApp.activate()
+        // activate() is cooperative and may be declined right after a menu closes; still bring the window up.
+        window?.orderFrontRegardless()
         window?.makeKeyAndOrderFront(nil)
     }
 

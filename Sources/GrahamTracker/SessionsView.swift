@@ -9,6 +9,7 @@ struct SessionRow: Identifiable {
 
 struct SessionsView: View {
     @ObservedObject var store: TrackerStore
+    @ObservedObject var navigation: AppNavigation
     let period: Period
 
     @State private var selection = Set<UUID>()
@@ -76,7 +77,14 @@ struct SessionsView: View {
     }
 
     private func startCell(_ row: SessionRow) -> some View {
-        TimeField(date: startBinding(row))
+        TimeField(
+            date: startBinding(row),
+            focusRequested: row.end == nil && navigation.pendingFocusActiveStart,
+            onFocused: {
+                navigation.pendingFocusActiveStart = false
+                selection = [row.id]
+            }
+        )
     }
 
     @ViewBuilder
