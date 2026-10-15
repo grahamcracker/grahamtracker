@@ -9,10 +9,10 @@ enum MenuBarIcon {
         return image
     }()
 
-    static let stopped = grahamCracker(biteRadius: 7, columns: 2, rows: 2)
+    static let stopped = grahamCracker(columns: 2, rows: 2)
 
-    /// A graham cracker with a bite out of the corner. Holes and the bite are cut out so it works as a template image.
-    static func grahamCracker(biteRadius: CGFloat, columns: Int, rows: Int) -> NSImage {
+    /// A graham cracker. Holes are cut out so it works as a template image.
+    static func grahamCracker(columns: Int, rows: Int) -> NSImage {
         let image = NSImage(size: NSSize(width: 21, height: 14), flipped: false) { _ in
             let body = NSRect(x: 1.5, y: 1, width: 18, height: 12)
             let path = NSBezierPath(roundedRect: body, xRadius: 2, yRadius: 2)
@@ -38,13 +38,6 @@ enum MenuBarIcon {
             path.windingRule = .evenOdd
             NSColor.black.setFill()
             path.fill()
-
-            // Scalloped bite out of the top-right corner.
-            let scallop = biteRadius * 0.43
-            NSGraphicsContext.current?.compositingOperation = .clear
-            NSBezierPath(ovalIn: circle(x: body.maxX + 0.5, y: body.maxY + 0.5, radius: biteRadius)).fill()
-            NSBezierPath(ovalIn: circle(x: body.maxX + 1.0, y: body.maxY - biteRadius, radius: scallop)).fill()
-            NSBezierPath(ovalIn: circle(x: body.maxX - biteRadius - 0.3, y: body.maxY + 1.0, radius: scallop)).fill()
             return true
         }
         image.isTemplate = true
