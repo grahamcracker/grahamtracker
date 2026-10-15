@@ -41,10 +41,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard let button = statusItem.button else { return }
         let today = Calendar.current.dateInterval(of: .day, for: Date())!
         let text = formatHMS(store.trackedTime(in: today))
-        button.attributedTitle = NSAttributedString(string: " " + text, attributes: [
-            .font: NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular),
-            .foregroundColor: store.isRunning ? NSColor.labelColor : NSColor.secondaryLabelColor,
-        ])
+        // Plain title (no explicit color) so the system draws it like other menu bar items.
+        button.font = NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+        button.title = " " + text
         let symbol = store.isRunning ? "record.circle" : "pause.circle"
         let image = NSImage(systemSymbolName: symbol, accessibilityDescription: store.isRunning ? "Tracking" : "Stopped")
         image?.isTemplate = true
