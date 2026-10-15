@@ -44,10 +44,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // Plain title (no explicit color) so the system draws it like other menu bar items.
         button.font = NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
         button.title = " " + text
-        let symbol = store.isRunning ? "record.circle.fill" : "pause.fill"
-        let image = NSImage(systemSymbolName: symbol, accessibilityDescription: store.isRunning ? "Tracking" : "Stopped")
-        image?.isTemplate = true
-        button.image = image
+        button.image = store.isRunning ? MenuBarIcon.running : MenuBarIcon.stopped
         button.appearsDisabled = false
     }
 
