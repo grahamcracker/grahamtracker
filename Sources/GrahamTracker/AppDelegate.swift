@@ -12,7 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var animationFrame = 0
 
     private var trackingAnimation: TrackingAnimation {
-        get { UserDefaults.standard.string(forKey: "trackingAnimation").flatMap(TrackingAnimation.init) ?? .sparkles }
+        get { UserDefaults.standard.string(forKey: "trackingAnimation").flatMap(TrackingAnimation.init) ?? .munch }
         set { UserDefaults.standard.set(newValue.rawValue, forKey: "trackingAnimation") }
     }
 

@@ -29,19 +29,24 @@ enum MenuBarIcon {
         (1.05, 0.8, 0.8),
     ].map { sparkles(big: $0.0, top: $0.1, bottom: $0.2) }
 
-    /// The cracker getting eaten from the right, one bite per frame, then whole again.
+    /// The cracker getting eaten from the right, one bite per frame. Every frame has a bite so none matches `stopped`.
     static let munchFrames: [NSImage] = {
         let bites: [Bite] = [
             Bite(x: 18.5, y: 12.5, radius: 4.2),
             Bite(x: 19.2, y: 6, radius: 3.6),
             Bite(x: 18.5, y: -0.5, radius: 4.2),
-            // Final big chomp: clears the right side, leaving a scalloped edge.
+            // Big chomp: clears the right side, leaving a scalloped edge.
             Bite(x: 22, y: 6, radius: 9),
             Bite(x: 14.5, y: 11.5, radius: 3),
             Bite(x: 13.5, y: 6.5, radius: 3),
             Bite(x: 14.5, y: 0.5, radius: 3),
+            // Final chomp past the snap line.
+            Bite(x: 15.5, y: 6, radius: 9),
+            Bite(x: 8, y: 11.5, radius: 3),
+            Bite(x: 7, y: 6.5, radius: 3),
+            Bite(x: 8, y: 0.5, radius: 3),
         ]
-        return [0, 1, 2, 3, 7].map { grahamCracker(bites: Array(bites.prefix($0))) }
+        return [1, 2, 3, 7, 11].map { grahamCracker(bites: Array(bites.prefix($0))) }
     }()
 
     struct Bite {
