@@ -8,6 +8,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let navigation = AppNavigation()
     private var statusItem: NSStatusItem!
     private var window: NSWindow?
+    private var animationTimer: Timer?
+    private var animationFrame = 0
+
+    private var trackingAnimation: TrackingAnimation {
+        get { UserDefaults.standard.string(forKey: "trackingAnimation").flatMap(TrackingAnimation.init) ?? .sparkles }
+        set { UserDefaults.standard.set(newValue.rawValue, forKey: "trackingAnimation") }
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -44,8 +51,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // Plain title (no explicit color) so the system draws it like other menu bar items.
         button.font = NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
         button.title = " " + text
-        button.image = store.isRunning ? MenuBarIcon.running : MenuBarIcon.stopped
-        button.appearsDisabled = false
+        syncAnimationTimer()
+        updateStatusImage()
+    }
+
+    private func updateStatusImage() {
+        guard let button = statusItem.button else { return }
+        if store.isRunning {
+            let frames = trackingAnimation.frames
+            button.image = frames[animationFrame % frames.count]
+        } else {
+            button.image = MenuBarIcon.stopped
+        }
+    }
+
+    /// Frame-swap animation; the timer only exists while tracking with an animation selected.
+    private func syncAnimationTimer() {
+        let animation = trackingAnimation
+        let shouldAnimate = store.isRunning && animation != .none
+        if shouldAnimate, animationTimer?.timeInterval != animation.frameInterval {
+            animationTimer?.invalidate()
+            let timer = Timer(timeInterval: animation.frameInterval, repeats: true) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    guard let self else { return }
+                    self.animationFrame += 1
+                    self.updateStatusImage()
+                }
+            }
+            timer.tolerance = 0.05
+            RunLoop.main.add(timer, forMode: .common)
+            animationTimer = timer
+        } else if !shouldAnimate, animationTimer != nil {
+            animationTimer?.invalidate()
+            animationTimer = nil
+            animationFrame = 0
+        }
     }
 
     @objc private func statusItemClicked(_ sender: NSStatusBarButton) {
@@ -83,6 +123,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(item(store.isRunning ? "Stop Tracking" : "Start Tracking", #selector(toggleTracking)))
         menu.addItem(item("Sessions & Charts…", #selector(openMainWindow), key: "l"))
         menu.addItem(.separator())
+
+        let animationMenu = NSMenu()
+        for animation in TrackingAnimation.allCases {
+            let animationItem = item(animation.rawValue, #selector(selectTrackingAnimation(_:)))
+            animationItem.representedObject = animation.rawValue
+            animationItem.state = animation == trackingAnimation ? .on : .off
+            animationMenu.addItem(animationItem)
+        }
+        let animationParent = NSMenuItem(title: "Tracking Animation", action: nil, keyEquivalent: "")
+        animationParent.submenu = animationMenu
+        menu.addItem(animationParent)
 
         let loginItem = item("Launch at Login", #selector(toggleLaunchAtLogin))
         loginItem.state = SMAppService.mainApp.status == .enabled ? .on : .off
@@ -152,6 +203,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // activate() is cooperative and may be declined right after a menu closes; still bring the window up.
         window?.orderFrontRegardless()
         window?.makeKeyAndOrderFront(nil)
+    }
+
+    @objc private func selectTrackingAnimation(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String, let animation = TrackingAnimation(rawValue: raw) else { return }
+        trackingAnimation = animation
+        animationFrame = 0
+        updateStatusItem()
     }
 
     @objc private func toggleLaunchAtLogin() {
