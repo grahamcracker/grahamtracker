@@ -46,7 +46,7 @@ enum MenuBarIcon {
             Bite(x: 7, y: 6.5, radius: 3),
             Bite(x: 8, y: 0.5, radius: 3),
         ]
-        return [1, 2, 3, 7, 11].map { grahamCracker(bites: Array(bites.prefix($0))) }
+        return [2, 3, 7, 11].map { grahamCracker(bites: Array(bites.prefix($0))) }
     }()
 
     struct Bite {
