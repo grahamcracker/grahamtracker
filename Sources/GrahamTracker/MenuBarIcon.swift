@@ -40,13 +40,8 @@ enum MenuBarIcon {
             Bite(x: 14.5, y: 11.5, radius: 3),
             Bite(x: 13.5, y: 6.5, radius: 3),
             Bite(x: 14.5, y: 0.5, radius: 3),
-            // Final chomp past the snap line.
-            Bite(x: 15.5, y: 6, radius: 9),
-            Bite(x: 8, y: 11.5, radius: 3),
-            Bite(x: 7, y: 6.5, radius: 3),
-            Bite(x: 8, y: 0.5, radius: 3),
         ]
-        return [2, 3, 7, 11].map { grahamCracker(bites: Array(bites.prefix($0))) }
+        return [2, 3, 7].map { grahamCracker(bites: Array(bites.prefix($0))) }
     }()
 
     struct Bite {
