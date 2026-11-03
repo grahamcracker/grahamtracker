@@ -3,11 +3,17 @@ import SwiftUI
 
 struct SettingsView: View {
     @ObservedObject var sync: NotionSync
+    let dataDirectory: URL
 
     var body: some View {
         Form {
             GeneralSection()
             NotionSection(sync: sync)
+            Section("Advanced") {
+                LabeledContent("Data folder") {
+                    Button("Open in Finder") { NSWorkspace.shared.open(dataDirectory) }
+                }
+            }
         }
         .formStyle(.grouped)
         .frame(width: 520)

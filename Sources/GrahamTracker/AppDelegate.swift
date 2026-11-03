@@ -141,7 +141,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         animationParent.submenu = animationMenu
         menu.addItem(animationParent)
 
-        menu.addItem(item("Open Data Folder", #selector(openDataFolder)))
         menu.addItem(item("Settings…", #selector(openSettings), key: ","))
         menu.addItem(.separator())
 
@@ -220,7 +219,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func openSettings() {
         if settingsWindow == nil {
-            let hosting = NSHostingController(rootView: SettingsView(sync: notionSync))
+            let hosting = NSHostingController(rootView: SettingsView(sync: notionSync, dataDirectory: store.dataDirectory))
             hosting.sizingOptions = [.preferredContentSize]
             let window = NSWindow(contentViewController: hosting)
             window.title = "GrahamTracker Settings"
@@ -243,10 +242,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         trackingAnimation = animation
         animationFrame = 0
         updateStatusItem()
-    }
-
-    @objc private func openDataFolder() {
-        NSWorkspace.shared.open(store.dataDirectory)
     }
 
     @objc private func quit() {

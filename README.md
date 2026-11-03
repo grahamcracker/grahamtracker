@@ -15,7 +15,7 @@ There are no projects, tasks, or tags. You're either working or you're not. Grah
 - **Charts**: see your hours by day, week, month, or year.
 - **Auto-stop when you're away**: tracking stops on its own after 5 minutes with no keyboard or mouse activity, or when your Mac goes to sleep.
 - **Starts with your Mac**: launches automatically when you log in (you can turn this off in Settings).
-- **Optional Notion sync**: copy your sessions to a Notion page, so you can see them from anywhere, or let other tools and AI assistants that use your Notion read them.
+- **Optional Notion sync**: copy your sessions to a Notion page, so you can see them from anywhere. It also gives AI agents and other tools connected to your Notion an easy way to read your hours: ask your assistant how much you worked this week, or feed the data into your own reports.
 
 <img src="docs/images/sessions.png" alt="Session log" width="720">
 
@@ -76,8 +76,7 @@ The icon tells you at a glance whether you're tracking:
 - **Start / Stop Tracking**: same as clicking the timer.
 - **Sessions & Charts…** (⌘L): opens the session log and charts window.
 - **Tracking Animation**: choose **Munching Cracker** (default), **Sparkles**, or **None** (a still icon).
-- **Open Data Folder**: shows where your history is saved.
-- **Settings…** (⌘,): turn **Launch at login** on or off, and set up Notion sync.
+- **Settings…** (⌘,): turn **Launch at login** on or off, set up Notion sync, and open the folder where your history is saved.
 - **Notion status** and **Sync to Notion Now**: shown only when Notion sync is on.
 - **Quit GrahamTracker**: quits the app. If you're tracking, the session is saved first.
 
@@ -151,7 +150,7 @@ In the Sessions & Charts window:
 
 ### Sync to Notion
 
-GrahamTracker can copy your sessions into a table on a Notion page. It's off by default. Turning it on is handy if you want your hours somewhere you can reach from your phone, share them, or let an assistant that's connected to your Notion answer questions like "how much did I work this week?"
+GrahamTracker can copy your sessions into a table on a Notion page. It's off by default. Turn it on if you want your hours somewhere you can reach from your phone or share with someone. It's also the easiest way to get your time data to an AI agent or another tool (see [Using your hours with AI agents and other tools](#using-your-hours-with-ai-agents-and-other-tools)).
 
 You don't need to sign in to Notion on your Mac. GrahamTracker uses a connection key that can only see the one page you share with it.
 
@@ -179,9 +178,22 @@ GrahamTracker adds a **GrahamTracker Sessions** table to that page and fills it 
 
 The key is saved in GrahamTracker's data folder, in a file only your Mac account can read.
 
+#### Using your hours with AI agents and other tools
+
+Once your sessions are in Notion, anything that can read your Notion can use them. You don't need to give that tool access to your Mac. For example:
+
+- **AI assistants**: connect ChatGPT, Claude, Notion AI, or your own agent to your Notion. Then ask things like "How many hours did I work last week?", "Which days this month did I work more than 8 hours?", or "Write a weekly summary of my work hours."
+- **Automations**: tools like Zapier, Make, or n8n can watch the table for new rows, for example to log hours to a spreadsheet or send a daily total to Slack.
+- **Your own scripts**: the table is easy to read through Notion's API. Each row is one session, with:
+  - **Start** and **End** as dates with times.
+  - **Hours** as a plain number.
+  - **Session ID**, which stays the same if the session is edited later.
+
+Tip: if your assistant only has access to some of your Notion, share the page with GrahamTracker Sessions with it too.
+
 ### Your data
 
-Your history stays on your Mac, in `~/Library/Application Support/GrahamTracker/sessions.json`. Choose **Open Data Folder** from the menu to find it.
+Your history stays on your Mac, in `~/Library/Application Support/GrahamTracker/sessions.json`. To find it, choose **Settings…** from the menu, then click **Open in Finder** under **Advanced**.
 
 - GrahamTracker saves a backup copy, `sessions.backup.json`, each time it starts.
 - The file is plain text and readable, so you can edit it by hand. **Quit GrahamTracker first**, or your changes may be overwritten.
