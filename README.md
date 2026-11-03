@@ -15,6 +15,7 @@ There are no projects, tasks, or tags. You're either working or you're not. Grah
 - **Charts**: see your hours by day, week, month, or year.
 - **Auto-stop when you're away**: tracking stops on its own after 5 minutes with no keyboard or mouse activity, or when your Mac goes to sleep.
 - **Starts with your Mac**: launches automatically when you log in (you can turn this off).
+- **Optional Notion sync**: copy your sessions into a Notion database, so you can see them from anywhere, or let other tools and AI assistants that use your Notion read them.
 
 <img src="docs/images/sessions.png" alt="Session log" width="720">
 
@@ -77,6 +78,8 @@ The icon tells you at a glance whether you're tracking:
 - **Tracking Animation**: choose **Munching Cracker** (default), **Sparkles**, or **None** (a still icon).
 - **Launch at Login**: turn automatic start at login on or off.
 - **Open Data Folder**: shows where your history is saved.
+- **Settings…** (⌘,): set up Notion sync.
+- **Notion status** and **Sync to Notion Now**: shown only when Notion sync is on.
 - **Quit GrahamTracker**: quits the app. If you're tracking, the session is saved first.
 
 ### Sessions
@@ -146,6 +149,36 @@ In the Sessions & Charts window:
 | ⌘T | Jump to today |
 | Delete | Delete the selected sessions |
 | ⌘W | Close the window |
+
+### Sync to Notion
+
+GrahamTracker can copy your sessions into a Notion database. It's off by default. Turning it on is handy if you want your hours somewhere you can reach from your phone, share them, or let an assistant that's connected to your Notion answer questions like "how much did I work this week?"
+
+You don't need to sign in to Notion on your Mac. GrahamTracker uses a connection key that can only see the one page you share with it.
+
+<img src="docs/images/settings-notion.png" alt="Notion sync settings" width="520">
+
+**To set it up:**
+
+1. Choose **Settings…** from the GrahamTracker menu and turn on **Sync sessions to Notion**.
+2. Click **Open Notion connections…**, create a new **internal** connection for your workspace, and copy its secret key.
+3. Paste the key into GrahamTracker and click **Connect**.
+4. In Notion, open the page where your sessions should live (or create a new one). Click **•••** in the top-right corner, choose **Connections**, and add the connection you just made.
+5. Back in GrahamTracker, click the refresh button, choose that page, and click **Create Database**.
+
+GrahamTracker creates a **Work Sessions** database on that page and fills it with your existing sessions. Each row has the session's **Start** and **End** time and its length in **Hours**.
+
+**After that, it keeps itself up to date:**
+
+- New sessions are added a few seconds after they end. A session in progress isn't added until it stops.
+- If you edit a session in GrahamTracker, its row in Notion is updated.
+- If you delete a session in GrahamTracker, its row is moved to Notion's trash.
+- Syncing only goes one way. Changes you make in Notion aren't copied back, and may be overwritten if you later edit that session in GrahamTracker.
+- If you're offline or Notion is down, GrahamTracker tries again every few minutes. The menu shows the last time it synced, or what went wrong.
+
+**To stop syncing,** turn off the switch in Settings. Your Notion database stays as it is. **Remove Key** disconnects GrahamTracker from Notion entirely. **Change…** lets you create a new database on a different page.
+
+The key is saved in GrahamTracker's data folder, in a file only your Mac account can read.
 
 ### Your data
 

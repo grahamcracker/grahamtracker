@@ -6,8 +6,10 @@ import SwiftUI
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let store = TrackerStore()
     private let navigation = AppNavigation()
+    private lazy var notionSync = NotionSync(store: store)
     private var statusItem: NSStatusItem!
     private var window: NSWindow?
+    private var settingsWindow: NSWindow?
     private var animationTimer: Timer?
     private var animationFrame = 0
 
@@ -28,7 +30,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         updateStatusItem()
         installMainMenu()
         enableLaunchAtLoginOnFirstRun()
+        notionSync.sync()
         if UserDefaults.standard.bool(forKey: "openWindowOnLaunch") { openMainWindow() }
+        if UserDefaults.standard.bool(forKey: "openSettingsOnLaunch") { openSettings() }
         if let error = store.loadError {
             let alert = NSAlert()
             alert.messageText = "GrahamTracker couldn't load your sessions"
@@ -139,7 +143,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         loginItem.state = SMAppService.mainApp.status == .enabled ? .on : .off
         menu.addItem(loginItem)
         menu.addItem(item("Open Data Folder", #selector(openDataFolder)))
+        menu.addItem(item("Settings…", #selector(openSettings), key: ","))
         menu.addItem(.separator())
+
+        if notionSync.settings.enabled {
+            menu.addItem(disabledItem("Notion: \(notionSync.statusDescription)"))
+            if notionSync.isReady {
+                menu.addItem(item("Sync to Notion Now", #selector(syncNotionNow)))
+            }
+            menu.addItem(.separator())
+        }
         menu.addItem(item("Quit GrahamTracker", #selector(quit), key: "q"))
         return menu
     }
@@ -205,6 +218,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         window?.makeKeyAndOrderFront(nil)
     }
 
+    @objc private func openSettings() {
+        if settingsWindow == nil {
+            let hosting = NSHostingController(rootView: SettingsView(sync: notionSync))
+            hosting.sizingOptions = [.preferredContentSize]
+            let window = NSWindow(contentViewController: hosting)
+            window.title = "GrahamTracker Settings"
+            window.styleMask = [.titled, .closable]
+            window.isReleasedWhenClosed = false
+            window.center()
+            settingsWindow = window
+        }
+        NSApp.activate()
+        settingsWindow?.orderFrontRegardless()
+        settingsWindow?.makeKeyAndOrderFront(nil)
+    }
+
+    @objc private func syncNotionNow() {
+        notionSync.sync()
+    }
+
     @objc private func selectTrackingAnimation(_ sender: NSMenuItem) {
         guard let raw = sender.representedObject as? String, let animation = TrackingAnimation(rawValue: raw) else { return }
         trackingAnimation = animation
@@ -246,6 +279,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let mainMenu = NSMenu()
 
         let appMenu = NSMenu()
+        let settingsItem = NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
+        settingsItem.target = self
+        appMenu.addItem(settingsItem)
         appMenu.addItem(withTitle: "Quit GrahamTracker", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         mainMenu.addItem(submenuItem(appMenu))
 
