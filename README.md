@@ -14,7 +14,7 @@ There are no projects, tasks, or tags. You're either working or you're not. Grah
 - **Editable session log**: every work session in a table. Fix start and end times, move sessions to another day, add sessions you forgot, or delete mistakes.
 - **Charts**: see your hours by day, week, month, or year.
 - **Auto-stop when you're away**: tracking stops on its own after 5 minutes with no keyboard or mouse activity, or when your Mac goes to sleep.
-- **Starts with your Mac**: launches automatically when you log in (you can turn this off).
+- **Starts with your Mac**: launches automatically when you log in (you can turn this off in Settings).
 - **Optional Notion sync**: copy your sessions into a Notion database, so you can see them from anywhere, or let other tools and AI assistants that use your Notion read them.
 
 <img src="docs/images/sessions.png" alt="Session log" width="720">
@@ -76,9 +76,8 @@ The icon tells you at a glance whether you're tracking:
 - **Start / Stop Tracking**: same as clicking the timer.
 - **Sessions & Charts…** (⌘L): opens the session log and charts window.
 - **Tracking Animation**: choose **Munching Cracker** (default), **Sparkles**, or **None** (a still icon).
-- **Launch at Login**: turn automatic start at login on or off.
 - **Open Data Folder**: shows where your history is saved.
-- **Settings…** (⌘,): set up Notion sync.
+- **Settings…** (⌘,): turn **Launch at login** on or off, and set up Notion sync.
 - **Notion status** and **Sync to Notion Now**: shown only when Notion sync is on.
 - **Quit GrahamTracker**: quits the app. If you're tracking, the session is saved first.
 
@@ -161,8 +160,8 @@ You don't need to sign in to Notion on your Mac. GrahamTracker uses a connection
 **To set it up:**
 
 1. Choose **Settings…** from the GrahamTracker menu and turn on **Sync sessions to Notion**.
-2. Click **Open Notion connections…**, create a new **internal** connection for your workspace, and copy its secret key.
-3. Paste the key into GrahamTracker and click **Connect**.
+2. Click **Open Notion connections…**, then **New integration**. Pick your workspace, leave the type as **Internal**, and save. Copy the **Internal Integration Secret** (it starts with `ntn_`). You don't need anything from the OAuth or "public integration" settings.
+3. Paste the secret into GrahamTracker and click **Connect**.
 4. In Notion, open the page where your sessions should live (or create a new one). Click **•••** in the top-right corner, choose **Connections**, and add the connection you just made.
 5. Back in GrahamTracker, click the refresh button, choose that page, and click **Create Database**.
 

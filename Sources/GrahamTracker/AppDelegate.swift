@@ -139,9 +139,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         animationParent.submenu = animationMenu
         menu.addItem(animationParent)
 
-        let loginItem = item("Launch at Login", #selector(toggleLaunchAtLogin))
-        loginItem.state = SMAppService.mainApp.status == .enabled ? .on : .off
-        menu.addItem(loginItem)
         menu.addItem(item("Open Data Folder", #selector(openDataFolder)))
         menu.addItem(item("Settings…", #selector(openSettings), key: ","))
         menu.addItem(.separator())
@@ -243,20 +240,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         trackingAnimation = animation
         animationFrame = 0
         updateStatusItem()
-    }
-
-    @objc private func toggleLaunchAtLogin() {
-        do {
-            if SMAppService.mainApp.status == .enabled {
-                try SMAppService.mainApp.unregister()
-            } else {
-                try SMAppService.mainApp.register()
-            }
-        } catch {
-            let alert = NSAlert(error: error)
-            NSApp.activate()
-            alert.runModal()
-        }
     }
 
     @objc private func openDataFolder() {

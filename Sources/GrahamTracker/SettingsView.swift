@@ -1,3 +1,4 @@
+import ServiceManagement
 import SwiftUI
 
 struct SettingsView: View {
@@ -14,11 +15,25 @@ struct SettingsView: View {
     @State private var isCreating = false
     @State private var createError: String?
 
+    @State private var launchAtLogin = false
+    @State private var loginError: String?
+
     private static let integrationsURL = URL(string: "https://www.notion.so/profile/integrations")!
 
     var body: some View {
         Form {
-            Section {
+            Section("General") {
+                Toggle("Launch at login", isOn: Binding(get: { launchAtLogin }, set: setLaunchAtLogin))
+                if let loginError {
+                    Text(loginError).font(.callout).foregroundStyle(.red)
+                }
+            }
+            .onAppear(perform: refreshLaunchAtLogin)
+            .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
+                refreshLaunchAtLogin()
+            }
+
+            Section("Notion") {
                 Toggle("Sync sessions to Notion", isOn: Binding(get: { sync.settings.enabled }, set: { sync.setEnabled($0) }))
                 Text("Each finished session is added as a row in a Notion database. Edits and deletes in GrahamTracker are copied there too.")
                     .font(.callout)
@@ -40,6 +55,26 @@ struct SettingsView: View {
         .fixedSize(horizontal: false, vertical: true)
     }
 
+    // MARK: - General
+
+    private func refreshLaunchAtLogin() {
+        launchAtLogin = SMAppService.mainApp.status == .enabled
+    }
+
+    private func setLaunchAtLogin(_ enabled: Bool) {
+        loginError = nil
+        do {
+            if enabled {
+                try SMAppService.mainApp.register()
+            } else {
+                try SMAppService.mainApp.unregister()
+            }
+        } catch {
+            loginError = error.localizedDescription
+        }
+        refreshLaunchAtLogin()
+    }
+
     // MARK: - Key
 
     @ViewBuilder
@@ -57,13 +92,13 @@ struct SettingsView: View {
                 }
             } else {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("1. In Notion, create a new **internal** connection (integration) for your workspace.")
-                    Text("2. Copy its secret and paste it here.")
+                    Text("1. Open Notion connections and click **New integration**. Pick your workspace and leave the type as **Internal**.")
+                    Text("2. Copy the **Internal Integration Secret** (it starts with `ntn_`) and paste it here. No OAuth setup is needed.")
                 }
                 .font(.callout)
                 Link("Open Notion connections…", destination: Self.integrationsURL)
                 HStack {
-                    SecureField("Key", text: $keyDraft, prompt: Text("Paste your key"))
+                    SecureField("Key", text: $keyDraft, prompt: Text("ntn_…"))
                         .labelsHidden()
                         .textFieldStyle(.roundedBorder)
                         .onSubmit(connect)
