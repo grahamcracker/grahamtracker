@@ -17,7 +17,9 @@ struct NotionPage: Identifiable, Hashable {
 @MainActor
 struct NotionClient {
     static let apiVersion = "2022-06-28"
-    static let databaseTitle = "Work Sessions"
+    static let databaseTitle = "GrahamTracker Sessions"
+    /// Earlier versions used this title; such databases are reused rather than duplicated.
+    static let legacyDatabaseTitles = ["Work Sessions"]
     /// Overridable so tests can point at a local mock server.
     static let baseURL = URL(string: ProcessInfo.processInfo.environment["GRAHAMTRACKER_NOTION_API"] ?? "https://api.notion.com/v1/")!
 
@@ -55,23 +57,50 @@ struct NotionClient {
         return pages.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
     }
 
-    func createDatabase(inPage pageID: String) async throws -> (id: String, url: String?) {
-        let empty: [String: Any] = [:]
-        let response = try await call("POST", "databases", body: [
-            "parent": ["type": "page_id", "page_id": pageID],
-            "title": [["type": "text", "text": ["content": Self.databaseTitle]]],
-            "properties": [
-                "Session": ["title": empty],
-                "Start": ["date": empty],
-                "End": ["date": empty],
-                "Hours": ["number": ["format": "number"]],
-                "Session ID": ["rich_text": empty],
-            ],
-        ])
+    /// Reuses a GrahamTracker database already on the page (adding any missing columns), or creates one.
+    func installDatabase(inPage pageID: String) async throws -> (id: String, url: String?) {
+        let response: [String: Any]
+        if let existing = try await findDatabase(inPage: pageID) {
+            response = try await call("PATCH", "databases/\(existing)", body: ["properties": Self.columns])
+        } else {
+            response = try await call("POST", "databases", body: [
+                "parent": ["type": "page_id", "page_id": pageID],
+                "title": [["type": "text", "text": ["content": Self.databaseTitle]]],
+                "properties": Self.columns.merging(["Session": ["title": [String: Any]()]]) { $1 },
+            ])
+        }
         guard let id = response["id"] as? String else {
-            throw NotionError(status: 0, code: "bad_response", message: "Notion didn't return the new database.")
+            throw NotionError(status: 0, code: "bad_response", message: "Notion didn't return the sessions database.")
         }
         return (id, response["url"] as? String)
+    }
+
+    /// Columns besides the title, which can't be re-declared on an existing database.
+    private static let columns: [String: Any] = [
+        "Start": ["date": [String: Any]()],
+        "End": ["date": [String: Any]()],
+        "Hours": ["number": ["format": "number"]],
+        "Session ID": ["rich_text": [String: Any]()],
+    ]
+
+    private func findDatabase(inPage pageID: String) async throws -> String? {
+        let titles = Set([Self.databaseTitle] + Self.legacyDatabaseTitles)
+        var cursor: String?
+        repeat {
+            var path = "blocks/\(pageID)/children?page_size=100"
+            if let cursor { path += "&start_cursor=\(cursor)" }
+            let response = try await call("GET", path)
+            for block in response["results"] as? [[String: Any]] ?? [] {
+                guard block["type"] as? String == "child_database",
+                      block["archived"] as? Bool != true, block["in_trash"] as? Bool != true,
+                      let title = (block["child_database"] as? [String: Any])?["title"] as? String,
+                      titles.contains(title)
+                else { continue }
+                return block["id"] as? String
+            }
+            cursor = response["has_more"] as? Bool == true ? response["next_cursor"] as? String : nil
+        } while cursor != nil
+        return nil
     }
 
     func queryAllRows(database id: String) async throws -> [[String: Any]] {
@@ -133,7 +162,7 @@ struct NotionClient {
 
     @discardableResult
     private func call(_ method: String, _ path: String, body: [String: Any]? = nil) async throws -> [String: Any] {
-        var request = URLRequest(url: Self.baseURL.appendingPathComponent(path))
+        var request = URLRequest(url: URL(string: path, relativeTo: Self.baseURL)!)
         request.httpMethod = method
         request.timeoutInterval = 30
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")

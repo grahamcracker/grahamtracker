@@ -4,60 +4,33 @@ import SwiftUI
 struct SettingsView: View {
     @ObservedObject var sync: NotionSync
 
-    @State private var keyDraft = ""
-    @State private var isConnecting = false
-    @State private var keyError: String?
-
-    @State private var pages: [NotionPage] = []
-    @State private var selectedPageID: String?
-    @State private var isLoadingPages = false
-    @State private var pagesError: String?
-    @State private var isCreating = false
-    @State private var createError: String?
-
-    @State private var launchAtLogin = false
-    @State private var loginError: String?
-
-    private static let integrationsURL = URL(string: "https://www.notion.so/profile/integrations")!
-
     var body: some View {
         Form {
-            Section("General") {
-                Toggle("Launch at login", isOn: Binding(get: { launchAtLogin }, set: setLaunchAtLogin))
-                if let loginError {
-                    Text(loginError).font(.callout).foregroundStyle(.red)
-                }
-            }
-            .onAppear(perform: refreshLaunchAtLogin)
-            .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
-                refreshLaunchAtLogin()
-            }
-
-            Section("Notion") {
-                Toggle("Sync sessions to Notion", isOn: Binding(get: { sync.settings.enabled }, set: { sync.setEnabled($0) }))
-                Text("Each finished session is added as a row in a Notion database. Edits and deletes in GrahamTracker are copied there too.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            }
-
-            if sync.settings.enabled {
-                keySection
-                if sync.settings.token != nil {
-                    destinationSection
-                }
-                if sync.isReady {
-                    statusSection
-                }
-            }
+            GeneralSection()
+            NotionSection(sync: sync)
         }
         .formStyle(.grouped)
         .frame(width: 520)
         .fixedSize(horizontal: false, vertical: true)
     }
+}
 
-    // MARK: - General
+private struct GeneralSection: View {
+    @State private var launchAtLogin = false
+    @State private var loginError: String?
 
-    private func refreshLaunchAtLogin() {
+    var body: some View {
+        Section("General") {
+            Toggle("Launch at login", isOn: Binding(get: { launchAtLogin }, set: setLaunchAtLogin))
+            if let loginError {
+                Text(loginError).font(.callout).foregroundStyle(.red)
+            }
+        }
+        .onAppear(perform: refresh)
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in refresh() }
+    }
+
+    private func refresh() {
         launchAtLogin = SMAppService.mainApp.status == .enabled
     }
 
@@ -72,26 +45,68 @@ struct SettingsView: View {
         } catch {
             loginError = error.localizedDescription
         }
-        refreshLaunchAtLogin()
+        refresh()
+    }
+}
+
+private struct NotionSection: View {
+    @ObservedObject var sync: NotionSync
+
+    @State private var keyDraft = ""
+    @State private var isConnecting = false
+    @State private var keyError: String?
+
+    @State private var pages: [NotionPage] = []
+    @State private var selectedPageID: String?
+    @State private var isLoadingPages = false
+    @State private var pagesError: String?
+    @State private var isInstalling = false
+    @State private var installError: String?
+
+    private static let integrationsURL = URL(string: "https://www.notion.so/profile/integrations")!
+
+    var body: some View {
+        Section {
+            VStack(alignment: .leading, spacing: 4) {
+                Toggle("Sync sessions to Notion", isOn: Binding(get: { sync.settings.enabled }, set: { sync.setEnabled($0) }))
+                Text("Your finished sessions are copied to a Notion page you choose. Edits and deletes in GrahamTracker are copied there too.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+
+            if sync.settings.enabled {
+                keyRows
+                if sync.settings.token != nil {
+                    pageRows
+                }
+                if sync.isReady {
+                    statusRow
+                }
+            }
+        } header: {
+            Text("Notion")
+        }
     }
 
     // MARK: - Key
 
     @ViewBuilder
-    private var keySection: some View {
-        Section("Connection key") {
-            if sync.settings.token != nil {
+    private var keyRows: some View {
+        if sync.settings.token != nil {
+            LabeledContent("Key") {
                 HStack {
                     Label {
                         Text("Connected to \(sync.settings.workspaceName ?? "Notion")")
                     } icon: {
                         Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
                     }
-                    Spacer()
-                    Button("Remove Key", role: .destructive) { sync.removeKey() }
+                    Button("Remove", role: .destructive) { sync.removeKey() }
                 }
-            } else {
-                VStack(alignment: .leading, spacing: 6) {
+            }
+        } else {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Key").fontWeight(.medium)
+                VStack(alignment: .leading, spacing: 4) {
                     Text("1. Open Notion connections and click **New integration**. Pick your workspace and leave the type as **Internal**.")
                     Text("2. Copy the **Internal Integration Secret** (it starts with `ntn_`) and paste it here. No OAuth setup is needed.")
                 }
@@ -128,52 +143,52 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - Destination
+    // MARK: - Page
 
     @ViewBuilder
-    private var destinationSection: some View {
-        Section("Sessions database") {
+    private var pageRows: some View {
+        Group {
             if sync.settings.databaseID != nil {
-                HStack(alignment: .firstTextBaseline) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(NotionClient.databaseTitle).fontWeight(.medium)
-                        Text("in “\(sync.settings.pageTitle ?? "Notion")”").font(.callout).foregroundStyle(.secondary)
+                LabeledContent("Page") {
+                    HStack {
+                        Text(sync.settings.pageTitle ?? "Notion")
+                        if let url = sync.settings.databaseURL.flatMap(URL.init(string:)) {
+                            Link("Open", destination: url)
+                        }
+                        Button("Change…") { sync.changeDestination() }
                     }
-                    Spacer()
-                    if let url = sync.settings.databaseURL.flatMap(URL.init(string:)) {
-                        Link("Open in Notion", destination: url)
-                    }
-                    Button("Change…") { sync.changeDestination() }
                 }
             } else {
-                Text("Choose a page. GrahamTracker will create a “\(NotionClient.databaseTitle)” database inside it.")
-                    .font(.callout)
-                HStack {
-                    Picker("Page", selection: $selectedPageID) {
-                        Text("Choose a page…").tag(String?.none)
-                        ForEach(pages) { page in
-                            Text(page.title).tag(Optional(page.id))
-                        }
-                    }
-                    Button { loadPages() } label: { Image(systemName: "arrow.clockwise") }
-                        .help("Refresh the list of pages")
-                        .disabled(isLoadingPages)
-                    if isLoadingPages { ProgressView().controlSize(.small) }
-                }
-                if !isLoadingPages && pages.isEmpty && pagesError == nil {
-                    Text("No pages are shared with this connection yet. In Notion, open the page you want to use, click ••• → Connections, and add your connection. Then refresh.")
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Page").fontWeight(.medium)
+                    Text("Choose the page your sessions should go on. GrahamTracker adds a sessions table to it, or picks up the one it added before.")
                         .font(.callout)
-                        .foregroundStyle(.secondary)
-                }
-                HStack {
-                    Spacer()
-                    if isCreating { ProgressView().controlSize(.small) }
-                    Button("Create Database", action: createDatabase)
-                        .buttonStyle(.borderedProminent)
-                        .disabled(selectedPageID == nil || isCreating)
-                }
-                if let error = pagesError ?? createError {
-                    Text(error).font(.callout).foregroundStyle(.red)
+                    HStack {
+                        Picker("Page", selection: $selectedPageID) {
+                            Text("Choose a page…").tag(String?.none)
+                            ForEach(pages) { page in
+                                Text(page.title).tag(Optional(page.id))
+                            }
+                        }
+                        .labelsHidden()
+                        Button { loadPages() } label: { Image(systemName: "arrow.clockwise") }
+                            .help("Refresh the list of pages")
+                            .disabled(isLoadingPages)
+                        if isLoadingPages { ProgressView().controlSize(.small) }
+                        Spacer()
+                        Button("Use This Page", action: install)
+                            .buttonStyle(.borderedProminent)
+                            .disabled(selectedPageID == nil || isInstalling)
+                        if isInstalling { ProgressView().controlSize(.small) }
+                    }
+                    if !isLoadingPages && pages.isEmpty && pagesError == nil {
+                        Text("No pages are shared with this connection yet. In Notion, open the page you want to use, click ••• → Connections, and add your connection. Then refresh.")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                    }
+                    if let error = pagesError ?? installError {
+                        Text(error).font(.callout).foregroundStyle(.red)
+                    }
                 }
             }
         }
@@ -199,27 +214,26 @@ struct SettingsView: View {
         }
     }
 
-    private func createDatabase() {
+    private func install() {
         guard let page = pages.first(where: { $0.id == selectedPageID }) else { return }
-        isCreating = true
-        createError = nil
+        isInstalling = true
+        installError = nil
         Task {
             do {
-                try await sync.createDatabase(in: page)
+                try await sync.install(in: page)
             } catch {
-                createError = error.localizedDescription
+                installError = error.localizedDescription
             }
-            isCreating = false
+            isInstalling = false
         }
     }
 
     // MARK: - Status
 
-    private var statusSection: some View {
-        Section("Status") {
+    private var statusRow: some View {
+        LabeledContent("Status") {
             HStack {
                 statusLabel
-                Spacer()
                 Button("Sync Now") { sync.sync() }
                     .disabled({ if case .syncing = sync.status { return true }; return false }())
             }

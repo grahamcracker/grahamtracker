@@ -122,10 +122,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(.separator())
 
         if store.isRunning {
-            menu.addItem(item("Change Current Session Start…", #selector(editCurrentSessionStart)))
+            menu.addItem(item("Change Current Session Start…", #selector(editCurrentSessionStart), symbol: "clock.arrow.circlepath"))
         }
-        menu.addItem(item(store.isRunning ? "Stop Tracking" : "Start Tracking", #selector(toggleTracking)))
-        menu.addItem(item("Sessions & Charts…", #selector(openMainWindow), key: "l"))
+        menu.addItem(store.isRunning
+            ? item("Stop Tracking", #selector(toggleTracking), symbol: "stop.fill")
+            : item("Start Tracking", #selector(toggleTracking), symbol: "play.fill"))
+        menu.addItem(item("Sessions & Charts…", #selector(openMainWindow), key: "l", symbol: "chart.bar.xaxis"))
         menu.addItem(.separator())
 
         let animationMenu = NSMenu()
@@ -172,9 +174,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         return "Stopped"
     }
 
-    private func item(_ title: String, _ action: Selector, key: String = "") -> NSMenuItem {
+    private func item(_ title: String, _ action: Selector, key: String = "", symbol: String? = nil) -> NSMenuItem {
         let item = NSMenuItem(title: title, action: action, keyEquivalent: key)
         item.target = self
+        item.image = symbol.flatMap { NSImage(systemSymbolName: $0, accessibilityDescription: nil) }
         return item
     }
 

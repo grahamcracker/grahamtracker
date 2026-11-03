@@ -95,18 +95,17 @@ final class NotionSync: ObservableObject {
         return try await NotionClient(token: token).searchPages()
     }
 
-    func createDatabase(in page: NotionPage) async throws {
+    func install(in page: NotionPage) async throws {
         guard let token = settings.token else { return }
-        let database = try await NotionClient(token: token).createDatabase(inPage: page.id)
+        let database = try await NotionClient(token: token).installDatabase(inPage: page.id)
         settings.pageTitle = page.title
         settings.databaseID = database.id
         settings.databaseURL = database.url
         saveSettings()
-        saveState(SyncState(databaseID: database.id, rows: [:]))
         sync()
     }
 
-    /// Forgets the current database so a new one can be created. The old one stays in Notion.
+    /// Forgets the current page so another can be chosen. Its database stays in Notion.
     func changeDestination() {
         settings.pageTitle = nil
         settings.databaseID = nil
@@ -190,7 +189,7 @@ final class NotionSync: ObservableObject {
                 } catch let error as NotionError where error.status == 404 {
                     throw NotionError(
                         status: 404, code: error.code,
-                        message: "Can't find the Work Sessions database in Notion. It may have been deleted or unshared. Choose a page in Settings to create a new one."
+                        message: "Can't find your sessions database in Notion. It may have been deleted or unshared. Choose a page again in Settings."
                     )
                 }
             }
