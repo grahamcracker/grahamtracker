@@ -10,8 +10,9 @@ build:
 app:
 	./scripts/bundle.sh
 
-# Quits the running copy (which saves any ongoing session), installs, and relaunches.
+# Quits the running copy, installs, and relaunches. A running session keeps going across the restart.
 install: app
+	defaults write com.grahamramsey.GrahamTracker resumeAfterRelaunch -bool YES
 	-osascript -e 'quit app "$(APP_NAME)"'
 	mkdir -p "$(INSTALL_DIR)"
 	rm -rf "$(INSTALL_DIR)/$(APP_NAME).app"

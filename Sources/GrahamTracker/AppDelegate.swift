@@ -2,6 +2,13 @@ import AppKit
 import ServiceManagement
 import SwiftUI
 
+/// Calls the deprecated activate(ignoringOtherApps:) without a deprecation warning.
+private protocol LegacyActivation {
+    func activate(ignoringOtherApps flag: Bool)
+}
+
+extension NSApplication: LegacyActivation {}
+
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let store = TrackerStore()
@@ -19,6 +26,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        UserDefaults.standard.removeObject(forKey: Self.resumeAfterRelaunchKey)
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusItem.button {
             button.target = self
@@ -43,8 +51,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        store.stop(reason: .quit)
+        if UserDefaults.standard.bool(forKey: Self.resumeAfterRelaunchKey) {
+            UserDefaults.standard.removeObject(forKey: Self.resumeAfterRelaunchKey)
+            store.saveForRelaunch()
+        } else {
+            store.stop(reason: .quit)
+        }
     }
+
+    /// Set by `make install` just before quitting, so updating doesn't end a running session.
+    private static let resumeAfterRelaunchKey = "resumeAfterRelaunch"
 
     // MARK: - Status item
 
@@ -211,10 +227,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             window.setFrameAutosaveName("MainWindow")
             self.window = window
         }
-        NSApp.activate()
-        // activate() is cooperative and may be declined right after a menu closes; still bring the window up.
-        window?.orderFrontRegardless()
-        window?.makeKeyAndOrderFront(nil)
+        present(window)
+    }
+
+    private func present(_ window: NSWindow?) {
+        // Menu actions fire while the status menu is still dismissing, and macOS often declines
+        // activation then. Wait for it to finish, and use the activation that can take focus from
+        // the front app, since the cooperative NSApp.activate() is regularly refused for menu bar apps.
+        DispatchQueue.main.async {
+            (NSApp as LegacyActivation).activate(ignoringOtherApps: true)
+            window?.orderFrontRegardless()
+            window?.makeKeyAndOrderFront(nil)
+        }
     }
 
     @objc private func openSettings() {
@@ -228,9 +252,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             window.center()
             settingsWindow = window
         }
-        NSApp.activate()
-        settingsWindow?.orderFrontRegardless()
-        settingsWindow?.makeKeyAndOrderFront(nil)
+        present(settingsWindow)
     }
 
     @objc private func syncNotionNow() {

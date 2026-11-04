@@ -203,6 +203,11 @@ final class TrackerStore: ObservableObject {
 
     // MARK: - Persistence
 
+    /// Saves without stopping, so a relaunch within the idle threshold picks the running session back up.
+    func saveForRelaunch() {
+        save()
+    }
+
     private func load() {
         guard FileManager.default.fileExists(atPath: fileURL.path) else { return }
         do {

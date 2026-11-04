@@ -46,7 +46,7 @@ git pull
 make install
 ```
 
-Updating quits and restarts the app. If you were tracking, your session is saved, and you'll need to click to start again.
+Updating quits and restarts the app. If you were tracking, the timer keeps going.
 
 **To uninstall**, choose **Quit GrahamTracker** from its menu, then delete `GrahamTracker.app` from the `Applications` folder in your home folder. Your history is kept in `~/Library/Application Support/GrahamTracker`, so delete that folder too if you want to remove it.
 
