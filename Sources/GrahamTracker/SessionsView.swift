@@ -96,6 +96,9 @@ struct SessionsView: View {
                     Text("+1d").font(.caption).foregroundStyle(.secondary)
                 }
             }
+        } else if store.pendingDayEnd != nil {
+            Text("Confirm stop time")
+                .foregroundStyle(.secondary)
         } else {
             Label("Running", systemImage: "record.circle")
                 .foregroundStyle(.green)
@@ -106,6 +109,8 @@ struct SessionsView: View {
     private func durationCell(_ row: SessionRow) -> some View {
         if let end = row.end {
             Text(formatHMS(end.timeIntervalSince(row.start))).monospacedDigit()
+        } else if let pending = store.pendingDayEnd {
+            Text(formatHMS(pending.timeIntervalSince(row.start))).monospacedDigit()
         } else {
             TimelineView(.periodic(from: .now, by: 1)) { context in
                 Text(formatHMS(context.date.timeIntervalSince(row.start))).monospacedDigit()

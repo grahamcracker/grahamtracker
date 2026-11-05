@@ -13,7 +13,7 @@ There are no projects, tasks, or tags. You're either working or you're not. Grah
 - **Fun status icon**: a graham cracker when stopped, and a cracker being munched while you work (or twinkling sparkles if you prefer).
 - **Editable session log**: every work session in a table. Fix start and end times, move sessions to another day, add sessions you forgot, or delete mistakes.
 - **Charts**: see your hours by day, week, month, or year.
-- **Auto-stop when you're away**: tracking stops on its own after 5 minutes with no keyboard or mouse activity, or when your Mac goes to sleep.
+- **Auto-stop when you're away**: by default, tracking stops after 5 minutes with no keyboard or mouse activity, or when your Mac goes to sleep. For office days, switch **Auto Complete** to **When I turn off** so meetings don't stop the timer.
 - **Starts with your Mac**: launches automatically when you log in (you can turn this off in Settings).
 - **Optional Notion sync**: copy your sessions to a Notion page, so you can see them from anywhere. It also gives AI agents and other tools connected to your Notion an easy way to read your hours: ask your assistant how much you worked this week, or feed the data into your own reports.
 
@@ -75,6 +75,7 @@ The icon tells you at a glance whether you're tracking:
 - **Change Current Session Start…**: shown only while tracking. Forgot to start the timer when you sat down? This opens the session log with the start time of your current session ready to edit. Type the time you actually started.
 - **Start / Stop Tracking**: same as clicking the timer.
 - **Sessions & Charts…** (⌘L): opens the session log and charts window.
+- **Auto Complete**: when a session ends on its own. **After five minutes of inactivity** (the default) is the behavior above. **When I turn off** keeps tracking through meetings and a closed laptop. It stops when you choose **Stop Tracking**, or the next day — when you wake your Mac, it asks what time you stopped the day before, so Tuesday doesn't run straight through until Wednesday morning.
 - **Tracking Animation**: choose **Munching Cracker** (default), **Sparkles**, or **None** (a still icon).
 - **Settings…** (⌘,): turn **Launch at login** on or off, set up Notion sync, and open the folder where your history is saved.
 - **Notion status** and **Sync to Notion Now**: shown only when Notion sync is on.
@@ -86,10 +87,10 @@ A session is one stretch of work, from when you start the timer to when it stops
 
 ### Automatic stopping
 
-You don't have to remember to stop the timer when you walk away:
+You don't have to remember to stop the timer when you walk away. Choose how, from **Auto Complete** in the menu:
 
-- **Away from your computer**: after **5 minutes** with no keyboard or mouse activity, tracking stops and the session is saved. Those 5 minutes are included in the session.
-- **Mac goes to sleep**: tracking stops at the moment your Mac sleeps.
+- **After five minutes of inactivity** (the default). After **5 minutes** with no keyboard or mouse activity, tracking stops and the session is saved. Those 5 minutes are included. Tracking also stops when your Mac goes to sleep.
+- **When I turn off**. Inactivity doesn't stop the timer, and closing the laptop during the day doesn't either — that time still counts, which is what you want in meetings. The session ends when you choose **Stop Tracking**, or the next day: waking your Mac (or opening the app) asks what time you stopped working the day before. That time is the end of the session, not the moment you woke up.
 
 After an automatic stop, GrahamTracker stays stopped until you click to start again. The menu shows when and why it stopped.
 

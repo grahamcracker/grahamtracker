@@ -12,7 +12,7 @@ struct ChartsView: View {
     let period: Period
 
     var body: some View {
-        let live = store.isRunning && period.containsNow
+        let live = store.isRunning && store.pendingDayEnd == nil && period.containsNow
         TimelineView(.periodic(from: .now, by: live ? 1 : 60)) { context in
             content(now: context.date)
         }

@@ -19,6 +19,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var settingsWindow: NSWindow?
     private var animationTimer: Timer?
     private var animationFrame = 0
+    private var isShowingDayEndPrompt = false
 
     private var trackingAnimation: TrackingAnimation {
         get { UserDefaults.standard.string(forKey: "trackingAnimation").flatMap(TrackingAnimation.init) ?? .munch }
@@ -27,6 +28,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         UserDefaults.standard.removeObject(forKey: Self.resumeAfterRelaunchKey)
+        store.onDayBoundary = { [weak self] in
+            // Don't present from inside the sleep/timer callback; let that run loop turn finish first.
+            DispatchQueue.main.async { self?.promptForDayEndIfNeeded() }
+        }
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusItem.button {
             button.target = self
@@ -48,13 +53,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             NSApp.activate()
             alert.runModal()
         }
+        if store.pendingDayEnd != nil {
+            // After the launch window orders front, so the prompt stays on top.
+            DispatchQueue.main.async { [weak self] in self?.promptForDayEndIfNeeded() }
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
         if UserDefaults.standard.bool(forKey: Self.resumeAfterRelaunchKey) {
             UserDefaults.standard.removeObject(forKey: Self.resumeAfterRelaunchKey)
             store.saveForRelaunch()
-        } else {
+        } else if store.pendingDayEnd == nil {
             store.stop(reason: .quit)
         }
     }
@@ -77,7 +86,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func updateStatusImage() {
         guard let button = statusItem.button else { return }
-        if store.isRunning {
+        if isActivelyTracking {
             let frames = trackingAnimation.frames
             button.image = frames[animationFrame % frames.count]
         } else {
@@ -85,10 +94,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
+    /// A session waiting for a stop time isn't still ticking.
+    private var isActivelyTracking: Bool { store.isRunning && store.pendingDayEnd == nil }
+
     /// Frame-swap animation; the timer only exists while tracking with an animation selected.
     private func syncAnimationTimer() {
         let animation = trackingAnimation
-        let shouldAnimate = store.isRunning && animation != .none
+        let shouldAnimate = isActivelyTracking && animation != .none
         if shouldAnimate, animationTimer?.timeInterval != animation.frameInterval {
             animationTimer?.invalidate()
             let timer = Timer(timeInterval: animation.frameInterval, repeats: true) { [weak self] _ in
@@ -116,6 +128,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if wantsMenu {
             statusItem.menu = buildMenu()
             sender.performClick(nil)
+        } else if store.pendingDayEnd != nil {
+            promptForDayEndIfNeeded()
         } else {
             store.toggle()
             updateStatusItem()
@@ -137,14 +151,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(disabledItem(statusLine()))
         menu.addItem(.separator())
 
-        if store.isRunning {
-            menu.addItem(item("Change Current Session Start…", #selector(editCurrentSessionStart), symbol: "clock.arrow.circlepath"))
+        if store.pendingDayEnd != nil {
+            menu.addItem(item("Set Stop Time…", #selector(showDayEndPrompt), symbol: "clock"))
+        } else {
+            if store.isRunning {
+                menu.addItem(item("Change Current Session Start…", #selector(editCurrentSessionStart), symbol: "clock.arrow.circlepath"))
+            }
+            menu.addItem(store.isRunning
+                ? item("Stop Tracking", #selector(toggleTracking), symbol: "stop.fill")
+                : item("Start Tracking", #selector(toggleTracking), symbol: "play.fill"))
         }
-        menu.addItem(store.isRunning
-            ? item("Stop Tracking", #selector(toggleTracking), symbol: "stop.fill")
-            : item("Start Tracking", #selector(toggleTracking), symbol: "play.fill"))
         menu.addItem(item("Sessions & Charts…", #selector(openMainWindow), key: "l", symbol: "chart.bar.xaxis"))
         menu.addItem(.separator())
+
+        let autoCompleteMenu = NSMenu()
+        for mode in AutoCompleteMode.allCases {
+            let modeItem = item(mode.title, #selector(selectAutoComplete(_:)))
+            modeItem.representedObject = mode.rawValue
+            modeItem.state = mode == AutoCompleteMode.current ? .on : .off
+            autoCompleteMenu.addItem(modeItem)
+        }
+        let autoCompleteParent = NSMenuItem(title: "Auto Complete", action: nil, keyEquivalent: "")
+        autoCompleteParent.submenu = autoCompleteMenu
+        menu.addItem(autoCompleteParent)
 
         let animationMenu = NSMenu()
         for animation in TrackingAnimation.allCases {
@@ -173,6 +202,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func statusLine() -> String {
         let time = Date.FormatStyle(date: .omitted, time: .shortened)
+        if store.pendingDayEnd != nil {
+            return "Set the time you stopped"
+        }
         if let start = store.activeStart {
             return "Running since \(start.formatted(time))"
         }
@@ -182,6 +214,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             case .idle: why = "idle 5 min"
             case .sleep: why = "Mac slept"
             case .recovered: why = "app wasn't running"
+            case .dayEnd: why = "woke the next day"
             case .manual, .quit: why = ""
             }
             return "Auto-stopped at \(auto.date.formatted(time)) (\(why))"
@@ -257,6 +290,55 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func syncNotionNow() {
         notionSync.sync()
+    }
+
+    @objc private func selectAutoComplete(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String, let mode = AutoCompleteMode(rawValue: raw) else { return }
+        AutoCompleteMode.current = mode
+    }
+
+    @objc private func showDayEndPrompt() {
+        promptForDayEndIfNeeded()
+    }
+
+    /// Asks what time yesterday's session ended. Shown on wake, and again if it was dismissed.
+    private func promptForDayEndIfNeeded() {
+        guard let suggested = store.pendingDayEnd, let start = store.activeStart else { return }
+        if isShowingDayEndPrompt {
+            (NSApp as LegacyActivation).activate(ignoringOtherApps: true)
+            return
+        }
+        isShowingDayEndPrompt = true
+        defer { isShowingDayEndPrompt = false }
+        updateStatusItem()
+
+        let alert = NSAlert()
+        alert.messageText = "What time did you stop working \(Self.dayPhrase(for: suggested))?"
+        alert.informativeText = "Tracking was still on overnight. The time below is the last moment it was running — change it if that's not when you stopped."
+        alert.addButton(withTitle: "Stop at This Time")
+
+        let calendar = Calendar.current
+        let dayStart = calendar.startOfDay(for: suggested)
+        let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart)!.addingTimeInterval(-1)
+        let picker = NSDatePicker(frame: NSRect(x: 0, y: 0, width: 200, height: 28))
+        picker.datePickerStyle = .textFieldAndStepper
+        picker.datePickerElements = .hourMinuteSecond
+        picker.font = .monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+        picker.minDate = max(start, dayStart)
+        picker.maxDate = dayEnd
+        picker.dateValue = min(max(suggested, picker.minDate ?? suggested), dayEnd)
+        alert.accessoryView = picker
+        alert.window.level = .floating
+
+        (NSApp as LegacyActivation).activate(ignoringOtherApps: true)
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        store.resolvePendingDayEnd(at: picker.dateValue)
+        updateStatusItem()
+    }
+
+    private static func dayPhrase(for date: Date) -> String {
+        if Calendar.current.isDateInYesterday(date) { return "yesterday" }
+        return "on \(date.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))"
     }
 
     @objc private func selectTrackingAnimation(_ sender: NSMenuItem) {
